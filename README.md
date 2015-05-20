@@ -1,4 +1,6 @@
 # simple-spray-websockets
+[![Build Status](https://travis-ci.org/smootoo/simple-spray-websockets.svg?branch=master)](https://travis-ci.org/smootoo/simple-spray-websockets)
+[![Coverage Status](https://coveralls.io/repos/smootoo/simple-spray-websockets/badge.svg?branch=master)](https://coveralls.io/r/smootoo/simple-spray-websockets?branch=master)
 
 Simple example of REST/WebSockets on Spray Can.
 
@@ -48,7 +50,7 @@ save on the initialisation costs per connection.
 ## Example
 
 The following example is created and tested in
-[`WebSocketsSpec.scala`](src/test/scala/org/suecarter/websockets/WebSocketsSpec.scala).
+[`WebSocketsSpec.scala`](src/test/scala/org/suecarter/websocket/WebSocketSpec.scala).
 
 ```scala
 val Ping = TextFrame("PING")
