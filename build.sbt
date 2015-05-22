@@ -28,9 +28,9 @@ scalacOptions in Compile ++= Seq(
   "-language:postfixOps"
 )
 
-ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := true
+//ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := true
 
-ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 90
+//ScoverageSbtPlugin.ScoverageKeys.coverageMinimum := 90
 
 scalariformSettings
 

@@ -178,7 +178,8 @@ object WebSocketSpec {
   class TestClient(
       testActor: ActorRef,
       host: String,
-      port: Int) extends WebSocketClient(host, port) {
+      port: Int
+  ) extends WebSocketClient(host, port) {
     def websockets: Receive = LoggingReceive {
       case UpgradedToWebSocket =>
         testActor ! UpgradedToWebSocket
