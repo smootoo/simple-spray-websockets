@@ -49,7 +49,7 @@ class WebSocketServer(workerFactory: ActorRef => Props) extends Actor with Actor
         workerFactory(connection),
         // enforces one connection per host/port combo (this might be
         // too restrictive for some magical router setups)
-        s"${remoteAddress.getHostString}:${remoteAddress.getPort()}"
+        s"${remoteAddress.getHostName}:${remoteAddress.getPort()}"
       )
       connection ! Http.Register(worker)
   }
@@ -73,10 +73,12 @@ object WebSocketServer {
     interface: String,
     port: Int,
     workerProps: ActorRef => Props,
-    name: String = "uhttp")(implicit context: ActorRefFactory,
-      system: ActorSystem,
-      ssl: ServerSSLEngineProvider,
-      timeout: Timeout): (ActorRef, Future[Tcp.Event]) = {
+    name: String = "uhttp"
+  )(implicit
+    context: ActorRefFactory,
+    system: ActorSystem,
+    ssl: ServerSSLEngineProvider,
+    timeout: Timeout): (ActorRef, Future[Tcp.Event]) = {
     val serverProps = Props(classOf[WebSocketServer], workerProps)
     val server = context.actorOf(serverProps, name)
 
@@ -95,7 +97,8 @@ abstract class WebSocketClient(
     host: String,
     port: Int,
     path: String = "/",
-    ssl: Boolean = false) extends WebSocketClientWorker with Stash {
+    ssl: Boolean = false
+) extends WebSocketClientWorker with Stash {
   override def preStart(): Unit = {
     import context.system
 
@@ -145,7 +148,8 @@ object Ack extends Tcp.Event with spray.io.Droppable
  * acking and stashing.
  */
 abstract class WebSocketComboWorker(
-    val serverConnection: ActorRef) extends Actor with ActorLogging with Stash {
+    val serverConnection: ActorRef
+) extends Actor with ActorLogging with Stash {
   import spray.can.websocket
 
   // headers may be useful for authentication and such
