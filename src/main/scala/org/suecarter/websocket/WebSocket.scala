@@ -49,7 +49,7 @@ class WebSocketServer(workerFactory: ActorRef => Props) extends Actor with Actor
         workerFactory(connection),
         // enforces one connection per host/port combo (this might be
         // too restrictive for some magical router setups)
-        s"${remoteAddress.getHostString}:${remoteAddress.getPort()}"
+        s"${remoteAddress.getHostName}:${remoteAddress.getPort()}"
       )
       connection ! Http.Register(worker)
   }
