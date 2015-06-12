@@ -18,7 +18,7 @@ import spray.can.websocket.frame._
 import spray.http._
 import spray.http.HttpMethods._
 
-import org.suecarter.utils.AkkaWordSpec
+import org.suecarter.utils._
 
 /*
 NOTE: we have intentionally not used spray-testkit as we want to
@@ -28,73 +28,55 @@ don't really care about testing the Route that we have created).
 It would be nice to use HTTP TestKit, but the docs have not yet been
 written for it or the akka-http client.
 */
-class WebSocketSpec extends AkkaWordSpec {
+class WebSocketSpec extends AkkaFlatSpec {
   import WebSocketSpec._
 
-  "REST endpoints" should {
-    "serve valid requests" in {
-      assert(get("/hello").entity.asString === "<h1>Greetings!</h1>")
-    }
+  "REST endpoints" should "serve valid requests" in {
+    assert(get("/hello").entity.asString === "<h1>Greetings!</h1>")
+  }
 
-    "reject invalid requests" in {
-      assert(get("/goodbye").status === StatusCodes.NotFound)
+  it should "reject invalid requests" in {
+    assert(get("/goodbye").status === StatusCodes.NotFound)
+  }
+
+  "WebSocket upgrade" should "server ping (with Ack) and client pong" in {
+    val client = newClientAndWaitForPingPong()
+
+    system.stop(client)
+  }
+
+  it should "client actor stop when it closes the connection" in {
+    val client = newClientAndWaitForPingPong()
+
+    watch(client)
+
+    client ! Close
+
+    fishForMessage() {
+      case Terminated(actor) if actor == client => true
+      case _ => false
     }
   }
 
-  "WebSocket upgrade" should {
-    "server ping (with Ack) and client pong" in {
-      val client = newClient()
+  it should "client and server can send large frames" in {
+    val client = newClientAndWaitForPingPong()
 
-      receiveN(4) should contain theSameElementsAs (
-        List(UpgradedToWebSocket, Ping, Ack, Pong)
-      )
+    client ! Big
+    val got = expectMsgType[String]
+    assert(got == Big, s"got ${got.take(100)}")
+  }
 
-      system.stop(client)
-    }
+  // must be last test -- we're stopping the test server
+  it should "client actor stop when the server stops" in {
+    val client = newClientAndWaitForPingPong()
 
-    "client actor stop when it closes the connection" in {
-      val client = newClient()
-      watch(client)
+    watch(client)
 
-      fishForMessage() {
-        case UpgradedToWebSocket => true
-        case _ => false
-      }
+    system.stop(server)
 
-      client ! Close
-      fishForMessage() {
-        case Terminated(actor) if actor == client => true
-        case _ => false
-      }
-    }
-
-    "client and server can send large frames" in {
-      val client = newClient()
-
-      receiveN(4) should contain theSameElementsAs (
-        List(UpgradedToWebSocket, Ping, Ack, Pong)
-      )
-
-      client ! Big
-      val got = expectMsgType[String](10 seconds)
-      assert(got == Big, s"got ${got.take(100)}")
-    }
-
-    // must be last test -- we're stopping the test server
-    "client actor stop when the server stops" in {
-      val client = newClient()
-      watch(client)
-
-      fishForMessage() {
-        case UpgradedToWebSocket => true
-        case _ => false
-      }
-      system.stop(server)
-
-      fishForMessage() {
-        case Terminated(actor) if actor == client => true
-        case _ => false
-      }
+    fishForMessage() {
+      case Terminated(actor) if actor == client => true
+      case _ => false
     }
   }
 
@@ -106,8 +88,7 @@ class WebSocketSpec extends AkkaWordSpec {
 
     import system.dispatcher
 
-    val workerProps = (conn: ActorRef) =>
-      Props(classOf[TestWorker], testActor, conn)
+    val workerProps = (conn: ActorRef) => Props(classOf[TestWorker], testActor, conn)
     val (server, command) = WebSocketServer.start("127.0.0.1", 0, workerProps)
 
     val binding = Await.result(command, 1 minute) match {
@@ -120,9 +101,17 @@ class WebSocketSpec extends AkkaWordSpec {
     this.server = server
   }
 
-  def newClient(): ActorRef = system.actorOf(Props(
-    classOf[TestClient], testActor, host, port
-  ))
+  def newClientAndWaitForPingPong(): ActorRef = {
+    val client = system.actorOf(Props(
+      classOf[TestClient], testActor, host, port
+    ))
+
+    receiveN(4) should contain theSameElementsAs (
+      Set(UpgradedToWebSocket, Ping, Ack, Pong)
+    )
+
+    client
+  }
 
   def get(path: String): HttpResponse = {
     import system.dispatcher

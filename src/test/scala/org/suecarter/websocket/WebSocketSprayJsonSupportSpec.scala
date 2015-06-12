@@ -8,36 +8,34 @@ import spray.can.websocket.frame.TextFrame
 
 import spray.json._
 
+import org.suecarter.utils._
+
 import SprayJsonSupportTestActor._
 
-import org.suecarter.utils.AkkaWordSpec
-
-class WebSocketSprayJsonSupportSpec extends AkkaWordSpec {
+class WebSocketSprayJsonSupportSpec extends AkkaFlatSpec {
 
   val actor = TestActorRef[SprayJsonSupportTestActor]
 
-  "SprayJsonSupport" should {
-    "unmarshall API messages" in {
-      actor ! TextFrame("""{"text": "hello"}""")
-      expectMsg(Foo("hello"))
-    }
+  "SprayJsonSupport" should "unmarshall API messages" in {
+    actor ! TextFrame("""{"text": "hello"}""")
+    expectMsg(Foo("hello"))
+  }
 
-    "unmarshall API messages containing UTF-8" in {
-      actor ! TextFrame("""{"text": "¢"}""")
-      expectMsg(Foo("¢"))
-    }
+  it should "unmarshall API messages containing UTF-8" in {
+    actor ! TextFrame("""{"text": "¢"}""")
+    expectMsg(Foo("¢"))
+  }
 
-    "not unmarshall non-API messages" in {
-      val frame = TextFrame("not hello")
-      actor ! frame
-      expectMsg(frame)
-    }
+  it should "not unmarshall non-API messages" in {
+    val frame = TextFrame("not hello")
+    actor ! frame
+    expectMsg(frame)
+  }
 
-    "handle JSON deserialisation errors" in {
-      actor ! TextFrame("""{"blah": "hello"}""")
-      expectMsgPF() {
-        case (json: JsValue, t: DeserializationException) =>
-      }
+  it should "handle JSON deserialisation errors" in {
+    actor ! TextFrame("""{"blah": "hello"}""")
+    expectMsgPF() {
+      case (json: JsValue, t: DeserializationException) =>
     }
   }
 
