@@ -12,13 +12,13 @@ fork := true
 
 libraryDependencies ++= Seq(
   "com.wandoulabs.akka" %% "spray-websocket" % "0.1.4",
-  "io.spray" %% "spray-json" % "1.3.1",
-  "io.spray" %% "spray-testkit" % "1.3.2" % "test",
-  "ch.qos.logback" % "logback-classic" % "1.1.2" % "test",
+  "io.spray" %% "spray-json" % "1.3.2",
+  "io.spray" %% "spray-testkit" % "1.3.3" % "test",
+  "ch.qos.logback" % "logback-classic" % "1.1.3" % "test",
   "org.slf4j" % "jul-to-slf4j" % "1.7.12" % "test",
-  "com.typesafe.akka" %% "akka-slf4j" % "2.3.9" % "test",
-  "com.typesafe.akka" %% "akka-testkit" % "2.3.9" % "test",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test"
+  "com.typesafe.akka" %% "akka-slf4j" % "2.3.11" % "test",
+  "com.typesafe.akka" %% "akka-testkit" % "2.3.11" % "test",
+  "org.scalatest" %% "scalatest" % "2.2.5" % "test"
 )
 
 scalacOptions in Compile ++= Seq(

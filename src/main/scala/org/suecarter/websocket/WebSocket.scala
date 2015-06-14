@@ -1,11 +1,14 @@
 package org.suecarter.websocket
 
+import java.util.UUID
+
 import akka.actor._
 import akka.event.LoggingReceive
 import akka.io._
 import akka.pattern.ask
 import akka.util._
 import scala.concurrent.Future
+import scala.util.Success
 import spray.can.Http
 import spray.can.server.UHttp
 import spray.can.websocket._
@@ -22,7 +25,9 @@ import spray.routing._
  * Caveats:
  *
  * 1. Not possible to use IO(Http) and IO(Uhttp) in an ActorSystem:
- *    https://github.com/wandoulabs/spray-websocket/issues/44
+ *    https://github.com/wandoulabs/spray-websocket/issues/44 Use the
+ *    bundled pipelining instead of the Spray Client one (there may be
+ *    other third party libraries that use IO(Http))
  *
  * 2. An upgrade request on any path is valid (not restricted):
  *    https://github.com/wandoulabs/spray-websocket/issues/67
@@ -47,9 +52,8 @@ class WebSocketServer(workerFactory: ActorRef => Props) extends Actor with Actor
 
       val worker = context.actorOf(
         workerFactory(connection),
-        // enforces one connection per host/port combo (this might be
-        // too restrictive for some magical router setups)
-        s"${remoteAddress.getHostName}:${remoteAddress.getPort()}"
+        // descriptive actor hierarchy name (includes the remote connection)
+        s"${remoteAddress.getHostName}:${remoteAddress.getPort()}:${UUID.randomUUID().toString.take(4)}"
       )
       connection ! Http.Register(worker)
   }
@@ -82,8 +86,25 @@ object WebSocketServer {
     val serverProps = Props(classOf[WebSocketServer], workerProps)
     val server = context.actorOf(serverProps, name)
 
+    // If you get an exception on this line about "IO-HTTP" actor
+    // already existing, then you've fallen foul of caveat #1,
+    // documented at the top of this file. The solution is to call
+    // startupUhttpFirst as early as possible when first starting your
+    // ActorSystem and then find out which other component is trying
+    // to register an actor at the same path. A workaround is provided
+    // for integration with Spray Client, but other libraries are
+    // expected to fall foul of the caveat.
     val binding = IO(UHttp) ? Http.Bind(server, interface, port)
     (server, binding.mapTo[Tcp.Event])
+  }
+
+  /**
+   * Evil hack to workaround caveat #1 as documented above.
+   *
+   * Do this first on any `ActorSystem` when running tests or the like.
+   */
+  def startupUhttpFirst()(implicit system: ActorSystem): Unit = {
+    IO(UHttp)
   }
 }
 
@@ -153,6 +174,7 @@ abstract class WebSocketComboWorker(
   import spray.can.websocket
 
   // headers may be useful for authentication and such
+  // NOTE these are only available in the WebSocket code
   var headers: List[HttpHeader] = _
 
   private var maskingKey: Array[Byte] = _
@@ -233,8 +255,9 @@ abstract class SimpleWebSocketComboWorker(conn: ActorRef)
     extends WebSocketComboWorker(conn) with HttpService {
 
   implicit def actorRefFactory: ActorRefFactory = context
-  implicit def settings: RoutingSettings = RoutingSettings.default(actorRefFactory)
-  implicit def handler: ExceptionHandler = ExceptionHandler.default
+  implicit def settings = RoutingSettings.default(actorRefFactory)
+  implicit def handler = ExceptionHandler.default
+  implicit def rejecter = RejectionHandler.Default
   final def rest: Receive = runRoute(route)
 
   def route: Route

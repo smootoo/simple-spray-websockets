@@ -14,13 +14,12 @@ import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
 
 /** Convenience for the boilerplate of setting up a test using an Akka System */
-abstract class AkkaWordSpec
-    extends HasSystem with TestKitBase
-    with DefaultTimeout with ImplicitSender
-    with Matchers with SLF4JLogging
-    with StoppingTestActorRefs
-    with WordSpecLike with SetupAndTearDownSystem {
-}
+abstract class AkkaFlatSpec
+  extends HasSystem with TestKitBase
+  with DefaultTimeout with ImplicitSender
+  with StoppingTestActorRefs
+  with FlatSpecLike with SetupAndTearDownSystem
+  with Matchers with SLF4JLogging
 
 // for when `system` must be defined ahead of a mixin
 trait HasSystem {
@@ -28,35 +27,19 @@ trait HasSystem {
 }
 
 /** equivalent for spray-testkit use (non-trivial ordering of mixins) */
-abstract class SprayWordSpec
-    extends WordSpecLike with Matchers with SetupAndTearDownSystem
+abstract class SprayFlatSpec
+    extends FlatSpecLike with SetupAndTearDownSystem
     with StoppingTestActorRefs
     with ScalatestRouteTest with HttpService
     with TestKitBase with DefaultTimeout with ImplicitSender
-    with SLF4JLogging {
+    with Matchers with SLF4JLogging {
   def actorRefFactory = system
+  implicit val routeTimeout: RouteTestTimeout = RouteTestTimeout(timeout.duration)
 }
 
 trait SetupAndTearDownSystem extends BeforeAndAfterAll {
-  this: WordSpecLike with TestKitBase =>
+  this: Suite with TestKitBase =>
   // can't mix in SetupAndTearDownSystem because fixture._ is different API
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    SLFJ4BridgeUtil.initialiseBridge()
-  }
-  override protected def afterAll(): Unit = {
-    super.afterAll()
-    TestKit.shutdownActorSystem(system)
-  }
-}
-
-/** equivalent fixture.WordSpec */
-abstract class AkkaFixtureWordSpec
-    extends HasSystem with TestKitBase
-    with DefaultTimeout with ImplicitSender
-    with Matchers with SLF4JLogging
-    with StoppingTestActorRefs
-    with org.scalatest.fixture.WordSpecLike with BeforeAndAfterAll {
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     SLFJ4BridgeUtil.initialiseBridge()
