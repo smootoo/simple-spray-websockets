@@ -1,5 +1,7 @@
 package org.suecarter.websocket
 
+import akka.io.Tcp.Command
+import akka.io.Tcp.CommandFailed
 import java.util.UUID
 
 import akka.actor._
@@ -83,7 +85,11 @@ object WebSocketServer {
     system: ActorSystem,
     ssl: ServerSSLEngineProvider,
     timeout: Timeout): (ActorRef, Future[Tcp.Event]) = {
-    val serverProps = Props(classOf[WebSocketServer], workerProps)
+    val worker: ActorRef => Props = workerProps(_).withMailbox(
+      "org.suecarter.websocket.high-priority-ack-mailbox"
+    )
+
+    val serverProps = Props(classOf[WebSocketServer], worker)
     val server = context.actorOf(serverProps, name)
 
     // If you get an exception on this line about "IO-HTTP" actor
@@ -112,14 +118,20 @@ object WebSocketServer {
  * Abstract actor that makes an HTTP connection request to the
  * provided location and upgrades to WebSocket when connected.
  *
- * NOTE: this uses a Stash so needs a dequeue mailbox.
+ * NOTE: this uses a Stash so needs a dequeue mailbox. The included
+ *
+ * {{{
+ *    .withMailbox("org.suecarter.websocket.high-priority-ack-mailbox")
+ * }}}
+ *
+ * is highly recommended.
  */
 abstract class WebSocketClient(
     host: String,
     port: Int,
     path: String = "/",
     ssl: Boolean = false
-) extends WebSocketClientWorker with Stash {
+) extends WebSocketClientWorker with Stash with WebSocketCommon {
   override def preStart(): Unit = {
     import context.system
 
@@ -131,9 +143,6 @@ abstract class WebSocketClient(
   // (no need to copy the rest of the file because they otherwise
   // handle stashing)
   override def receive = handshaking orElse closeLogic orElse stashing
-  def stashing: Receive = {
-    case _ => stash()
-  }
 
   val WebSocketUpgradeHeaders = List(
     HttpHeaders.Connection("Upgrade"),
@@ -156,10 +165,13 @@ abstract class WebSocketClient(
   // workaround upstream naming convention
   final def businessLogic: Receive = websockets
   def websockets: Receive
+
 }
 
 /** Ack received in response to WebSocketComboWorker.sendWithAck */
-object Ack extends Tcp.Event with spray.io.Droppable
+object Ack extends Tcp.Event with spray.io.Droppable {
+  override def toString = "Ack"
+}
 
 /**
  * Provides a UHTTP-enabled worker for an HTTP connection with the
@@ -169,15 +181,13 @@ object Ack extends Tcp.Event with spray.io.Droppable
  * acking and stashing.
  */
 abstract class WebSocketComboWorker(
-    val serverConnection: ActorRef
-) extends Actor with ActorLogging with Stash {
+    val connection: ActorRef
+) extends Actor with ActorLogging with Stash with WebSocketCommon {
   import spray.can.websocket
 
   // headers may be useful for authentication and such
   // NOTE these are only available in the WebSocket code
   var headers: List[HttpHeader] = _
-
-  private var maskingKey: Array[Byte] = _
 
   // from upstream
   def closeLogic: Receive = {
@@ -194,7 +204,7 @@ abstract class WebSocketComboWorker(
         case wsContext: websocket.HandshakeContext =>
           headers = wsContext.request.headers
           // https://github.com/wandoulabs/spray-websocket/issues/69
-          maskingKey = Array.empty[Byte]
+          // maskingKey = ???
           sender() ! UHttp.UpgradeServer(websocket.pipelineStage(self, wsContext), wsContext.response)
       }
 
@@ -208,9 +218,6 @@ abstract class WebSocketComboWorker(
 
   // our rest logic PLUS https://github.com/wandoulabs/spray-websocket/issues/70
   def receive = handshaking orElse rest orElse closeLogic orElse stashing
-  def stashing: Receive = {
-    case _ => stash()
-  }
 
   /** User-defined websocket handler. */
   def websockets: Receive
@@ -223,27 +230,10 @@ abstract class WebSocketComboWorker(
    */
   def rest: Receive
 
-  /**
-   * Wandoulabs' WebSocket implementation doesn't support ack/nack-ing
-   * on the CommandFrame level. But it is possible to drop down to TCP
-   * messages by duplicating their FrameRendering logic in the
-   * ServerWorker actor. Here we construct a payload that is ignored
-   * by the ConnectionManager which requests an Ack.
-   *
-   * A similar pattern could be applied for non-Text Frames and NACK
-   * based writing, in order to skip the FrameRendering logic.
-   *
-   * For more information, see
-   * https://groups.google.com/d/msg/akka-user/ckUJ9wlltuc/h37ZRCkAA6cJ
-   */
-  def sendWithAck(frame: TextFrame): Unit = {
-    serverConnection ! Tcp.Write(FrameRender.render(frame, maskingKey), Ack)
-  }
-
   // from upstream
-  def send(frame: Frame) {
-    serverConnection ! FrameCommand(frame)
-  }
+  // def send(frame: Frame) {
+  //   serverConnection ! FrameCommand(frame)
+  // }
 }
 
 /**
@@ -261,4 +251,65 @@ abstract class SimpleWebSocketComboWorker(conn: ActorRef)
   final def rest: Receive = runRoute(route)
 
   def route: Route
+}
+
+// actor logic shared between client and server workers
+private[websocket] trait WebSocketCommon {
+  this: Actor with Stash with ActorLogging =>
+  def connection: ActorRef
+  def closeLogic: Receive
+
+  /**
+   * Wandoulabs' WebSocket implementation doesn't support ack/nack-ing
+   * on the CommandFrame level. But it is possible to drop down to TCP
+   * messages by duplicating their FrameRendering logic in the
+   * ServerWorker actor. Here we construct a payload that is ignored
+   * by the ConnectionManager which requests an Ack.
+   *
+   * A similar pattern could be applied for non-Text Frames and NACK
+   * based writing, in order to skip the FrameRendering logic.
+   *
+   * WARNING: callers should be aware of the implications of changing
+   * the state in this method. Multiple calls to this **must not** be
+   * made in the same receive block, or the earlier Acks will be
+   * missed.
+   *
+   * For more information, see
+   * https://groups.google.com/d/msg/akka-user/ckUJ9wlltuc/h37ZRCkAA6cJ
+   */
+  def sendWithAck(frame: TextFrame, downstream: ActorRef): Unit = {
+    connection ! Tcp.Write(FrameRender(frame), Ack)
+    context.become(closeLogic orElse waitingForAck(downstream, frame) orElse stashing, discardOld = false)
+  }
+
+  def stashing: Receive = {
+    case msg => stash()
+  }
+
+  def waitingForAck(downstream: ActorRef, sending: TextFrame): Receive = {
+    case Ack =>
+      context.unbecome()
+      unstashAll()
+
+      if (downstream != self)
+        downstream forward Ack
+
+    case FrameCommandFailed(frame: TextFrame, _) if frame == sending =>
+      log.error(s"Failed to send frame, retrying: $frame")
+
+      connection ! Tcp.ResumeWriting
+
+      context.become(
+        waitingForRecovery(frame) orElse closeLogic orElse stashing,
+        discardOld = false
+      )
+  }
+
+  def waitingForRecovery(frame: TextFrame): Receive = {
+    case Tcp.WritingResumed =>
+      connection ! Tcp.Write(FrameRender(frame), Ack)
+      context.unbecome()
+    // is there a message that says "sorry, can't resume" that we can handle?
+  }
+
 }

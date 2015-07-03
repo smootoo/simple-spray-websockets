@@ -28,6 +28,11 @@ libraryDependencies ++= Seq(
   "org.specs2" %% "specs2-core" % AKKA_VERSION % "test"
 )
 
+dependencyOverrides ++= Set(
+  "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+  "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
+)
+
 scalacOptions in Compile ++= Seq(
   "-encoding", "UTF-8", "-target:jvm-1.6",
   "-feature", "-deprecation",

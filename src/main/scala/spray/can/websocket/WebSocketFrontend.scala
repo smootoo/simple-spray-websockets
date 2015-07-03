@@ -117,11 +117,12 @@ object WebSocketFrontend {
           case x: FrameCommand => actorContext.self forward x
           case x: FrameStreamCommand => actorContext.self forward x
 
-          case w: Tcp.Write =>
-            // assume client knows what they are doing (acking / nacking)
+          case x @ Tcp.Close => actorContext.self ! x
+
+          case w: Tcp.Command =>
+            // assume client knows what they are doing (acking / nacking / error handling)
             actorContext.self forward w
 
-          case x @ Tcp.Close => actorContext.self ! x
         }
       }
 
