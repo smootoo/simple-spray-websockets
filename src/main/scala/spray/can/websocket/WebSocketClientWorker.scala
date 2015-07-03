@@ -22,8 +22,10 @@ trait WebSocketClientWorker extends Actor with Stash with ActorLogging {
 
   def closeLogic: Receive = {
     case ev: Http.ConnectionClosed =>
+      println("STDOUT Connection closed on event: {}", ev)
+
+      log.warning("Connection closed on event: {}", ev)
       context.stop(self)
-      log.debug("Connection closed on event: {}", ev)
   }
 
   def handshaking: Receive = {

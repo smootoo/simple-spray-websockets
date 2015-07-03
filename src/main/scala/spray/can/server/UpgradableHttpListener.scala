@@ -18,7 +18,7 @@ import spray.io.SslTlsSupportPatched
  *   private val pipelineStage = UpgradableHttpListener.pipelineStage(settings, statsHolder)
  */
 class UpgradableHttpListener(
-  bindCommander: ActorRef,
+    bindCommander: ActorRef,
     bind: Http.Bind,
     httpSettings: HttpExt#Settings
 ) extends HttpListener(bindCommander, bind, httpSettings) {
