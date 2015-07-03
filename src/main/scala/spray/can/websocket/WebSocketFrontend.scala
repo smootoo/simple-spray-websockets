@@ -109,8 +109,18 @@ object WebSocketFrontend {
        */
       class HandlerResponseReceiver extends Actor {
         def receive = {
-          case x: Frame => actorContext.self ! FrameCommand(x)
-          case x: FrameStream => actorContext.self ! FrameStreamCommand(x)
+          // weird that this API accepts Frames and not *Command, like the server equivalent
+          case x: Frame       => actorContext.self forward FrameCommand(x)
+          case x: FrameStream => actorContext.self forward FrameStreamCommand(x)
+
+          // to be consistent with the server
+          case x: FrameCommand       => actorContext.self forward x
+          case x: FrameStreamCommand => actorContext.self forward x
+
+          case w: Tcp.Write =>
+            // assume client knows what they are doing (acking / nacking)
+            actorContext.self forward w
+
           case x @ Tcp.Close => actorContext.self ! x
         }
       }
