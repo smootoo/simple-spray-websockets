@@ -39,14 +39,14 @@ class WebSocketSpec extends AkkaFlatSpec {
     assert(get("/goodbye").status === StatusCodes.NotFound)
   }
 
-  "WebSocket upgrade" should "server ping (with Ack) and client pong" in {
-    val client = newClientAndWaitForPingPong()
+  "WebSocket upgrade" should "server foo (with Ack) and client bar (with Ack)" in {
+    val client = newClientAndWaitForFooBar()
 
     system.stop(client)
   }
 
   it should "client actor stop when it closes the connection" in {
-    val client = newClientAndWaitForPingPong()
+    val client = newClientAndWaitForFooBar()
 
     watch(client)
 
@@ -59,16 +59,19 @@ class WebSocketSpec extends AkkaFlatSpec {
   }
 
   it should "client and server can send large frames" in {
-    val client = newClientAndWaitForPingPong()
+    val client = newClientAndWaitForFooBar()
 
     client ! Big
-    val got = expectMsgType[String]
-    assert(got == Big, s"got ${got.take(100)}")
+
+    receiveN(2) should contain theSameElementsAs (
+      List(Ack, Big)
+    )
+
   }
 
   // must be last test -- we're stopping the test server
   it should "client actor stop when the server stops" in {
-    val client = newClientAndWaitForPingPong()
+    val client = newClientAndWaitForFooBar()
 
     watch(client)
 
@@ -101,13 +104,17 @@ class WebSocketSpec extends AkkaFlatSpec {
     this.server = server
   }
 
-  def newClientAndWaitForPingPong(): ActorRef = {
+  def newClientAndWaitForFooBar(): ActorRef = {
     val client = system.actorOf(Props(
       classOf[TestClient], testActor, host, port
+    ).withMailbox(
+      "org.suecarter.websocket.high-priority-ack-mailbox"
     ))
 
-    receiveN(4) should contain theSameElementsAs (
-      Set(UpgradedToWebSocket, Ping, Ack, Pong)
+    client ! Foo
+
+    receiveN(6) should contain theSameElementsAs (
+      List(UpgradedToWebSocket, UpgradedToWebSocket, Foo, Ack, Bar, Ack)
     )
 
     client
@@ -127,9 +134,8 @@ class WebSocketSpec extends AkkaFlatSpec {
 }
 
 object WebSocketSpec {
-  // not the same as the Ping/Pong in the WebSocket spec
-  val Ping = TextFrame("PING")
-  val Pong = TextFrame("PONG")
+  val Foo = TextFrame("FOO")
+  val Bar = TextFrame("BAR")
   val Close = CloseFrame()
   // this message should be larger than typical TCP buffers
   val Big = "hello world!" * 1024 * 1024
@@ -140,18 +146,16 @@ object WebSocketSpec {
       extends SimpleWebSocketComboWorker(conn) {
     val websockets: Receive = LoggingReceive {
       case UpgradedToWebSocket =>
-      case Ping =>
-        testActor ! Ping
-        sendWithAck(Pong)
-
-      case Ack =>
-        testActor ! Ack
+        testActor ! UpgradedToWebSocket
+      case Foo =>
+        testActor ! Foo
+        sendWithAck(Bar, testActor)
 
       case str: String =>
-        send(TextFrame(str))
+        sendWithAck(TextFrame(str), self)
 
       case BigFrame =>
-        send(BigFrame)
+        sendWithAck(BigFrame, self)
 
     }
 
@@ -172,15 +176,18 @@ object WebSocketSpec {
     def websockets: Receive = LoggingReceive {
       case UpgradedToWebSocket =>
         testActor ! UpgradedToWebSocket
-        connection ! Ping
+
+      case Foo =>
+        sendWithAck(Foo, sender()) // testActor sends us Foo, so Ack goes to them
+
       case Close =>
         connection ! Close
 
-      case Pong =>
-        testActor ! Pong
+      case Bar =>
+        testActor ! Bar
 
       case Big =>
-        connection ! BigFrame
+        sendWithAck(BigFrame, sender())
 
       case frame: TextFrame =>
         testActor ! frame.payload.utf8String

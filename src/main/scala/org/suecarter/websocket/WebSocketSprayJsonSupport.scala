@@ -63,14 +63,14 @@ trait WebSocketServerSprayJsonSupport extends SprayJsonSupport {
 
   final override def websockets: Receive = json orElse message
 
-  def send(t: Outgoing): Unit = {
-    val body = outgoingFormat.write(t).compactPrint
-    send(TextFrame(body))
-  }
+  // def send(t: Outgoing): Unit = {
+  //   val body = outgoingFormat.write(t).compactPrint
+  //   send(TextFrame(body))
+  // }
 
-  def sendWithAck(t: Outgoing): Unit = {
+  def sendWithAck(t: Outgoing, downstream: ActorRef = sender()): Unit = {
     val body = outgoingFormat.write(t).compactPrint
-    sendWithAck(TextFrame(body))
+    sendWithAck(TextFrame(body), downstream)
   }
 }
 
@@ -79,8 +79,14 @@ trait WebSocketClientSprayJsonSupport extends SprayJsonSupport {
 
   final override def websockets: Receive = json orElse message
 
-  def send(t: Outgoing): Unit = {
+  // def send(t: Outgoing): Unit = {
+  //   val body = outgoingFormat.write(t).compactPrint
+  //   connection ! TextFrame(body)
+  // }
+
+  def sendWithAck(t: Outgoing, downstream: ActorRef = sender()): Unit = {
     val body = outgoingFormat.write(t).compactPrint
-    connection ! TextFrame(body)
+    sendWithAck(TextFrame(body), downstream)
   }
+
 }

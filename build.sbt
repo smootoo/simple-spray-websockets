@@ -4,25 +4,38 @@ organization := "org.suecarter"
 
 name := "simple-spray-websockets"
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.7"
 
 version := "1.0-SNAPSHOT"
 
 fork := true
 
+val SPRAY_VERSION = "1.3.3"
+val AKKA_VERSION = "2.3.11"
+
 libraryDependencies ++= Seq(
-  "com.wandoulabs.akka" %% "spray-websocket" % "0.1.4",
+  "io.spray" %% "spray-can" % SPRAY_VERSION,
+  "io.spray" %% "spray-routing-shapeless2" % SPRAY_VERSION,
   "io.spray" %% "spray-json" % "1.3.2",
-  "io.spray" %% "spray-testkit" % "1.3.3" % "test",
+  "com.typesafe.akka" %% "akka-actor" % AKKA_VERSION,
+  "com.typesafe.akka" %% "akka-testkit" % AKKA_VERSION % "test",
+  "io.spray" %% "spray-testkit" % SPRAY_VERSION % "test",
   "ch.qos.logback" % "logback-classic" % "1.1.3" % "test",
   "org.slf4j" % "jul-to-slf4j" % "1.7.12" % "test",
-  "com.typesafe.akka" %% "akka-slf4j" % "2.3.11" % "test",
-  "com.typesafe.akka" %% "akka-testkit" % "2.3.11" % "test",
-  "org.scalatest" %% "scalatest" % "2.2.5" % "test"
+  "com.typesafe.akka" %% "akka-slf4j" % AKKA_VERSION % "test",
+  "com.typesafe.akka" %% "akka-testkit" % AKKA_VERSION % "test",
+  "org.scalatest" %% "scalatest" % "2.2.5" % "test",
+  "org.specs2" %% "specs2-core" % AKKA_VERSION % "test"
+)
+
+dependencyOverrides ++= Set(
+  "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+  "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4"
 )
 
 scalacOptions in Compile ++= Seq(
-  "-encoding", "UTF-8", "-target:jvm-1.6",
+  // we need 1.7 methods for compression
+  "-encoding", "UTF-8", "-target:jvm-1.7",
   "-feature", "-deprecation",
   "-Xfatal-warnings",
   "-language:postfixOps"
