@@ -4,7 +4,7 @@ organization := "org.suecarter"
 
 name := "simple-spray-websockets"
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.7"
 
 version := "1.0-SNAPSHOT"
 
@@ -34,7 +34,8 @@ dependencyOverrides ++= Set(
 )
 
 scalacOptions in Compile ++= Seq(
-  "-encoding", "UTF-8", "-target:jvm-1.6",
+  // we need 1.7 methods for compression
+  "-encoding", "UTF-8", "-target:jvm-1.7",
   "-feature", "-deprecation",
   "-Xfatal-warnings",
   "-language:postfixOps"

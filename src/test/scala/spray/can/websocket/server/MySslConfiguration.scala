@@ -29,7 +29,8 @@ trait MySslConfiguration {
   // available here
   implicit def sslEngineProvider: ServerSSLEngineProvider = {
     ServerSSLEngineProvider { engine =>
-      engine.setEnabledCipherSuites(Array("TLS_RSA_WITH_AES_256_CBC_SHA"))
+      // the next line doesn't work in OpenJDK 6 (at least)
+      //engine.setEnabledCipherSuites(Array("TLS_RSA_WITH_AES_256_CBC_SHA"))
       engine.setEnabledProtocols(Array("SSLv3", "TLSv1"))
       engine
     }

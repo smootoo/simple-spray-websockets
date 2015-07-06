@@ -1,9 +1,9 @@
 language: scala
 jdk:
-  - openjdk6
+  - openjdk7
 scala:
-  - 2.11.5
-#  - 2.10.4
+  - 2.11.7
+
 sudo: false
 cache:
   directories:
@@ -16,3 +16,5 @@ script:
     #&& sbt ++$TRAVIS_SCALA_VERSION clean coverage test
 #after_success:
 #  - sbt ++$TRAVIS_SCALA_VERSION coveralls
+env:
+  - AKKA_TEST_TIMEFACTOR=10

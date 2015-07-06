@@ -2,6 +2,7 @@ package org.suecarter.websocket
 
 import akka.actor._
 import akka.dispatch._
+import akka.io.Tcp
 import com.typesafe.config.Config
 import java.util.concurrent.LinkedBlockingDeque
 
@@ -23,6 +24,7 @@ case class HighPriorityAckMailbox(settings: ActorSystem.Settings, config: Config
   override def priority(e: Envelope): Boolean = e.message match {
     case Ack => true
     case fail: FrameCommandFailed => true
+    case Tcp.WritingResumed => true
     case _ => false
   }
 }
