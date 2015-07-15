@@ -286,7 +286,7 @@ private[websocket] trait WebSocketCommon {
     case msg => stash()
   }
 
-  def waitingForAck(downstream: ActorRef, sending: TextFrame): Receive = {
+  def waitingForAck(downstream: ActorRef, sending: Frame): Receive = {
     case Ack =>
       context.unbecome()
       unstashAll()
@@ -294,8 +294,8 @@ private[websocket] trait WebSocketCommon {
       if (downstream != self)
         downstream forward Ack
 
-    case FrameCommandFailed(frame: TextFrame, _) if frame == sending =>
-      log.error(s"Failed to send frame, retrying: $frame")
+    case FrameCommandFailed(frame: Frame, _) if frame == sending =>
+      log.warning(s"Failed to send frame, retrying: $frame")
 
       connection ! Tcp.ResumeWriting
 
@@ -305,7 +305,7 @@ private[websocket] trait WebSocketCommon {
       )
   }
 
-  def waitingForRecovery(frame: TextFrame): Receive = {
+  def waitingForRecovery(frame: Frame): Receive = {
     case Tcp.WritingResumed =>
       connection ! Tcp.Write(FrameRender(frame), Ack)
       context.unbecome()
