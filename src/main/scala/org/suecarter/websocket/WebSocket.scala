@@ -295,7 +295,7 @@ private[websocket] trait WebSocketCommon {
         downstream forward Ack
 
     case FrameCommandFailed(frame: Frame, _) if frame == sending =>
-      log.error(s"Failed to send frame, retrying: $frame")
+      log.warning(s"Failed to send frame, retrying: $frame")
 
       connection ! Tcp.ResumeWriting
 
