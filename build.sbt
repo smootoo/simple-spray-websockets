@@ -75,4 +75,8 @@ pomExtra :=
       <id>smootoo</id>
       <name>Sue Carter</name>
    </developer>
+   <developer>
+      <id>fommil</id>
+      <name>Sam Halliday</name>
+   </developer>
 </developers>
