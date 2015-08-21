@@ -1,8 +1,10 @@
 # simple-spray-websockets
 [![Build Status](https://travis-ci.org/smootoo/simple-spray-websockets.svg?branch=master)](https://travis-ci.org/smootoo/simple-spray-websockets)
-[![Coverage Status](https://coveralls.io/repos/smootoo/simple-spray-websockets/badge.svg?branch=master)](https://coveralls.io/r/smootoo/simple-spray-websockets?branch=master)
+<!---[![Coverage Status](https://coveralls.io/repos/smootoo/simple-spray-websockets/badge.svg?branch=master)](https://coveralls.io/r/smootoo/simple-spray-websockets?branch=master)-->
 
 Simple example of REST/WebSockets on Spray Can.
+
+Available on [maven central](http://search.maven.org/#artifactdetails|org.suecarter|simple-spray-websockets_2.11|1.0|jar)
 
 This small project introduces convenience classes / patterns to set up
 a server that can handle both REST and WebSockets as well as the
