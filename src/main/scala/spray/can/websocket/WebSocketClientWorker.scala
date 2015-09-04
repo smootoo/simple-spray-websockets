@@ -1,6 +1,7 @@
 package spray.can.websocket
 
 import akka.actor.{ Stash, Actor, ActorLogging, ActorRef }
+import akka.io._
 import spray.can.Http
 import spray.can.server.UHttp
 import spray.can.websocket
@@ -49,11 +50,17 @@ trait WebSocketClientWorker extends Actor with Stash with ActorLogging {
 
     case Http.CommandFailed(con: Connect) =>
       log.warning("failed to connect to {}", con.remoteAddress)
-      context.stop(self)
+
+      // WORKAROUND: https://github.com/wandoulabs/spray-websocket/issues/80
+      connectFailed()
 
     case cmd @ (_: Send | _: SendStream) =>
       log.debug("stashing cmd {} ", cmd)
       stash()
+  }
+
+  def connectFailed(): Unit = {
+    context.stop(self)
   }
 
   def businessLogic: Receive
