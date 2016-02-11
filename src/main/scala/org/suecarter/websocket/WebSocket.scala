@@ -248,6 +248,9 @@ abstract class SimpleWebSocketComboWorker(conn: ActorRef)
   implicit def settings = RoutingSettings.default(actorRefFactory)
   implicit def handler = ExceptionHandler.default
   implicit def rejecter = RejectionHandler.Default
+
+  override def onConnectionClosed(ev: Tcp.ConnectionClosed): Unit = closeLogic(ev)
+
   final def rest: Receive = runRoute(route)
 
   def route: Route
