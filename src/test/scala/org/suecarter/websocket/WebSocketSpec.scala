@@ -1,5 +1,7 @@
 package org.suecarter.websocket
 
+import java.net.InetSocketAddress
+
 import akka.actor._
 import akka.event.LoggingReceive
 import akka.io.Tcp.Bound
@@ -37,6 +39,14 @@ class WebSocketSpec extends AkkaFlatSpec {
 
   it should "reject invalid requests" in {
     assert(get("/goodbye").status === StatusCodes.NotFound)
+  }
+
+  "Server worker actor" should "stop when connection is closed" in {
+    val connected = Http.Connected(new InetSocketAddress(0), new InetSocketAddress(0))
+    val Http.Register(worker, _) = Await.result(server ? connected, 10 seconds)
+    watch(worker)
+    worker ! Http.Closed
+    expectTerminated(worker, 10 seconds)
   }
 
   "WebSocket upgrade" should "server foo (with Ack) and client bar (with Ack)" in {
