@@ -4,7 +4,7 @@
 
 Simple example of REST/WebSockets on Spray Can.
 
-Available on [maven central](http://search.maven.org/#artifactdetails|org.suecarter|simple-spray-websockets_2.11|1.0|jar)
+Available on [maven central](http://search.maven.org/#artifactdetails|org.suecarter|simple-spray-websockets_2.11|1.0.1|jar)
 
 This small project introduces convenience classes / patterns to set up
 a server that can handle both REST and WebSockets as well as the

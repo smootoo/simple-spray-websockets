@@ -6,7 +6,7 @@ name := "simple-spray-websockets"
 
 scalaVersion := "2.11.7"
 
-version := "1.0"
+version := "1.0.1"
 
 fork := true
 
@@ -78,5 +78,9 @@ pomExtra :=
    <developer>
       <id>fommil</id>
       <name>Sam Halliday</name>
+   </developer>
+   <developer>
+      <id>stellerex</id>
+      <name>stellerex</name>
    </developer>
 </developers>
