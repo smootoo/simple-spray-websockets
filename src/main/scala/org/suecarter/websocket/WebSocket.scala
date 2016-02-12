@@ -2,6 +2,7 @@ package org.suecarter.websocket
 
 import akka.io.Tcp.Command
 import akka.io.Tcp.CommandFailed
+import akka.io.Tcp.WritingResumed
 import java.util.UUID
 
 import akka.actor._
@@ -135,6 +136,13 @@ abstract class WebSocketClient(
   override def preStart(): Unit = {
     import context.system
 
+    connectFailed() // misnomer, we just use it to connect
+  }
+
+  override def connectFailed(): Unit = {
+    log.info(s"attempting to connect to $host:$port")
+    import context.system
+
     IO(UHttp) ! Http.Connect(host, port, sslEncryption = ssl)
   }
 
@@ -169,7 +177,7 @@ abstract class WebSocketClient(
 }
 
 /** Ack received in response to WebSocketComboWorker.sendWithAck */
-object Ack extends Tcp.Event with spray.io.Droppable {
+object Ack extends Tcp.Event with spray.io.Droppable with DeadLetterSuppression {
   override def toString = "Ack"
 }
 
@@ -256,6 +264,7 @@ abstract class SimpleWebSocketComboWorker(conn: ActorRef)
   def route: Route
 }
 
+
 // actor logic shared between client and server workers
 private[websocket] trait WebSocketCommon {
   this: Actor with Stash with ActorLogging =>
@@ -280,7 +289,7 @@ private[websocket] trait WebSocketCommon {
    * For more information, see
    * https://groups.google.com/d/msg/akka-user/ckUJ9wlltuc/h37ZRCkAA6cJ
    */
-  def sendWithAck(frame: TextFrame, downstream: ActorRef): Unit = {
+  def sendWithAck(frame: Frame, downstream: ActorRef): Unit = {
     connection ! Tcp.Write(FrameRender(frame), Ack)
     context.become(closeLogic orElse waitingForAck(downstream, frame) orElse stashing, discardOld = false)
   }
@@ -306,13 +315,14 @@ private[websocket] trait WebSocketCommon {
         waitingForRecovery(frame) orElse closeLogic orElse stashing,
         discardOld = false
       )
+
   }
 
   def waitingForRecovery(frame: Frame): Receive = {
     case Tcp.WritingResumed =>
       connection ! Tcp.Write(FrameRender(frame), Ack)
       context.unbecome()
-    // is there a message that says "sorry, can't resume" that we can handle?
+    // is there a message that says "sorry, can't resume?"
   }
 
 }
