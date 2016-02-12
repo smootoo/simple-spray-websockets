@@ -42,6 +42,11 @@ class SslTlsSupportSpec extends Specification with NoTimeConversions {
       event-handlers = ["akka.testkit.TestEventListener"]
       loglevel = WARNING
       io.tcp.trace-logging = off
+      # this allows us to set an envvar for slow build environments
+      test {
+        single-expect-default = 10 seconds
+        default-timeout = 10 seconds
+      }
     }""")
   val sslTraceLogging = true
   implicit val system = ActorSystem(Utils.actorSystemNameFrom(getClass), testConf)

@@ -8,6 +8,9 @@ sudo: false
 cache:
   directories:
     - $HOME/.ivy2/cache
+env:
+  global:
+    - AKKA_TEST_TIMEFACTOR=10
 script:
   # coverage only for unit tests, not integration tests
   - sbt ++$TRAVIS_SCALA_VERSION compile test:compile doc &&
@@ -16,5 +19,3 @@ script:
     #&& sbt ++$TRAVIS_SCALA_VERSION clean coverage test
 #after_success:
 #  - sbt ++$TRAVIS_SCALA_VERSION coveralls
-env:
-  - AKKA_TEST_TIMEFACTOR=10
